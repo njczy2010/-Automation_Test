@@ -1,0 +1,49 @@
+--------------------HouseCall CallBack Data Information Start--------------
+Resource=file
+VirusName=PACU_0059
+DCTPtnID=1
+DCTPtnName=DCT_PROACTIVE
+Action=scan
+Result=virus found
+FilePath=c:\Windows\kvsc3.exe
+--------------------HouseCall CallBack Data Information End--------------
+--------------------HouseCall CallBack Data Information Start--------------
+Resource=registry data
+VirusName=PACU_0059
+DCTPtnID=1
+DCTPtnName=DCT_PROACTIVE
+Action=scan
+Result=virus found
+RegKey=HKEY_LOCAL_MACHINE\software\microsoft\windows\currentversion\run
+RegValue=kvsc3
+ValueData=c:\windows\kvsc3.exe
+--------------------HouseCall CallBack Data Information End--------------
+--------------------HouseCall CallBack Data Information Start--------------
+Resource=file
+VirusName=PACU_0059
+DCTPtnID=1
+DCTPtnName=DCT_PROACTIVE
+Action=scan
+Result=virus found
+FilePath=C:\Windows\system32\kvsc3.dll
+--------------------HouseCall CallBack Data Information End--------------
+--------------------HouseCall CallBack Data Information Start--------------
+Resource=file
+VirusName=PACU_0078
+DCTPtnID=1
+DCTPtnName=DCT_PROACTIVE
+Action=scan
+Result=virus found
+FilePath=c:\Windows\System32\ASDFASDF.exe
+--------------------HouseCall CallBack Data Information End--------------
+--------------------HouseCall CallBack Data Information Start--------------
+Resource=registry data
+VirusName=PACU_0078
+DCTPtnID=1
+DCTPtnName=DCT_PROACTIVE
+Action=scan
+Result=virus found
+RegKey=HKEY_LOCAL_MACHINE\software\microsoft\windows\currentversion\run
+RegValue=worknote1
+ValueData=c:\windows\system32\ASDFASDF.exe
+--------------------HouseCall CallBack Data Information End--------------

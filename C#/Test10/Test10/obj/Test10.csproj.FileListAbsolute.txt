@@ -1,0 +1,8 @@
+D:\czy\chengxu\C#\Test10\Test10\bin\Debug\Test10.exe
+D:\czy\chengxu\C#\Test10\Test10\bin\Debug\Test10.pdb
+D:\czy\chengxu\C#\Test10\Test10\obj\Debug\ResolveAssemblyReference.cache
+D:\czy\chengxu\C#\Test10\Test10\obj\Debug\Test10.Form1.resources
+D:\czy\chengxu\C#\Test10\Test10\obj\Debug\Test10.Properties.Resources.resources
+D:\czy\chengxu\C#\Test10\Test10\obj\Debug\Test10.csproj.GenerateResource.Cache
+D:\czy\chengxu\C#\Test10\Test10\obj\Debug\Test10.exe
+D:\czy\chengxu\C#\Test10\Test10\obj\Debug\Test10.pdb

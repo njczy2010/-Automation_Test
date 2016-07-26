@@ -1,0 +1,1494 @@
+@TSC_SETTING           	; gus 1-8RB842 06.01.2001
+												; gus 1-847L7Z 04.07.2011
+												; gus 05.08.2009 modified by JuliusD (EE) 060909H204 
+												; vincentt 03.31.2003
+{
+   id=1
+   fmt=tsc_policy
+
+   get_os_ex()
+   ;get_os()
+   jg(b) END				;nt6.1
+   jg(8) WINVISTA		;nt6
+   jg(5) WIN2KXP		;nt5
+   jg(3) WINNT			;nt4
+
+:WIN9X
+   processes_add_exception(WIN9X, "%systemdir%\msgsrv32.exe")
+   processes_add_exception(WIN9X, "%systemdir%\kernel32.dll")
+   processes_add_exception(WIN9X, "%systemdir%\rpcss.exe")
+   processes_add_exception(WIN9X, "%systemdir%\wmiexe.exe")
+   processes_add_exception(WIN9X, "%systemdir%\ddhelp.exe")
+   processes_add_exception(WIN9X, "%systemdir%\WINOA386.MOD")
+   goto END
+
+:WINNT
+   processes_add_exception(WINNT, "%systemdir%\spoolss.exe")
+   processes_add_exception(WINNT, "%systemdir%\rpcss.exe")
+   goto WINNT_COMMON
+
+:WINVISTA
+   processes_add_exception(WINNT, "%systemdir%\csrss.exe")
+   processes_add_exception(WINNT, "%systemdir%\winlogon.exe")
+   processes_add_exception(WINNT, "%systemdir%\lsm.exe")
+   processes_add_exception(WINNT, "%systemdir%\wininit.exe")
+:WIN2KXP
+   processes_add_exception(WINNT, "%systemdir%\svchost.exe")
+   processes_add_exception(WINNT, "%systemdir%\spoolsv.exe")
+   processes_add_exception(WINNT, "%systemdir%\userinit.exe")
+   processes_add_exception(WINNT, "%systemdir%\mstask.exe")
+   processes_add_exception(WINNT, "%systemdir%\winmgmt.exe")
+:WINNT_COMMON
+   processes_add_exception(WINNT, "\SystemRoot\System32\smss.exe")
+   processes_add_exception(WINNT, "\??\%systemdir%\csrss.exe")
+   processes_add_exception(WINNT, "\??\%systemdir%\winlogon.exe")
+   processes_add_exception(WINNT, "%systemdir%\services.exe")
+   processes_add_exception(WINNT, "%systemdir%\lsass.exe")
+
+; remove to dce whitelist
+	file_del_exception(WINNT, "%systemroot%\explorer.exe")
+
+:END
+}
+
+
+@CheckEngineVer  ;[Liko Huang] [07/09/2011 21:06 PM] OhlordG 7/21/2011 4:14PM, Liko Huang fix in 2012/3/29 submitted JaydeeV 3/30/2012 1-BSLCW6
+{
+  id=1
+  fmt=tsc_library
+  func CheckEngineVer
+  pusha()
+        
+        w01 pop                                          ;register 01 saves the checked engine minor version 
+        w02 pop                                          ;register 02 saves the checked engine major version
+        push(0) w00 pop                                  ;return value  
+        get_tsc_version()
+  change_type(STRING, DWORD)
+  jne(1) CHECK_ENGINE_VERSION_END pop
+  w03 pop                                               ;register 03 saves the tsc engine version DWORD number like 352e36 (is 6.5)       
+        r03 push(0000000f) & w04 pop                    ;register 04 saves the current tsc engine major version
+        r03 push(00000010) >> push(0000000f) & w05 pop  ;register 05 saves the current tsc engine minor version
+        
+        r02 jl(1) CHECK_ENGINE_VERSION_END pop          ;if the checked engine major version = 0,exit
+        r04 r02 /
+        jl(1) CHECK_ENGINE_VERSION_END pop              ;if r04 < r02, exit
+        r04 r02 Eq w06 pop pop 
+        r06 jne(1) ENGINE_FIT pop                       ;if major version is equal check minor version
+                                                        ;if r04 > r02, fit, if r04=r02, compare minor version
+        r01 jl(1) ENGINE_FIT pop                        ;if the checked engine minor version = 0, fit
+        r05 r01 /
+        jl(1) CHECK_ENGINE_VERSION_END                  ;if r05 < r01
+:ENGINE_FIT pop 
+        push(1) w00
+       
+:CHECK_ENGINE_VERSION_END pop 
+        r00  
+        popa()
+  ret_func
+  end_func
+}
+
+
+
+;------------ PROACTIVE DCT PATTERN ------------ 
+
+;------------ PROACTIVE DCT PATTERN ------------ 
+@SET_DEBUG_LEVEL ;add after DCE 6.6, by Yilin Qu,  2012/2/13
+{
+	id=1
+	fmt=tsc_library
+	
+	func SET_DEBUG_LEVEL
+	pusha()
+	wa0 pop; debug level to set	
+	push(0) w80 pop	
+	push(6) push(6)
+	call_func CheckEngineVer							
+	je(0) END pop	
+	set_debug_level(ra0) w80
+:END
+	pop	
+	r80
+ 	popa()
+ 	ret_func
+ 	end_func
+}
+
+@DWORD_TO_STR ;[AllanS] [7/10/2009 7:40:37 PM] *** LIBRARY *** convert DWORD to STR
+{
+	id=1
+	fmt=tsc_library
+
+	func DWORD_TO_STR
+
+	pusha()
+	wa0 pop ;dest
+	;push(0) call_func SET_DEBUG_LEVEL wff pop
+	push("") wa4 pop
+	push(0) wa3
+:GET_CURRENT_VALUE	pop
+
+	push(f0000000) ra0 &
+	push(1c)
+	>>
+
+	jg(9) LETTER
+
+	push(30) +
+	goto CHANGE_TYPE_NA
+
+:LETTER
+	push(57) +
+:CHANGE_TYPE_NA
+
+	change_type(BYTE, STRING) pop wa2 pop
+	ra4 ra2 + wa4 pop
+
+	ra0
+	push(4)
+	<< wa0 pop
+
+	ra3 je(7) STOP_PARSING
+	push(1) + wa3
+	goto GET_CURRENT_VALUE
+
+:STOP_PARSING
+	;rff call_func SET_DEBUG_LEVEL pop
+	ra4
+ 	popa()
+ 	ret_func
+ 	end_func
+
+}
+@STR_TO_DWORD ;[AllanS] [7/10/2009 7:40:37 PM] *** LIBRARY *** convert STR to DWORD
+{
+	id=1
+	fmt=tsc_library
+
+	func STR_TO_DWORD
+
+	pusha()
+	wa0 pop ;dest
+	;push(0) call_func SET_DEBUG_LEVEL wff pop
+	;get only last 8
+	str_len(ra0) wa1
+	je(8) DO_NOTHING
+	jl(8) LESS_THAN_7
+	;more than 8 - get only right part
+	push(8) - wa2 pop
+	str_get_substr(ra0, ra2, ra1) pop wa0
+
+goto DO_NOTHING
+
+:LESS_THAN_7 pop
+
+
+	push(8) ra1 - wa1 pop
+
+	push("00000000") wa2 pop
+	str_put_substr(ra2, ra0, ra1) pop wa0
+
+:DO_NOTHING
+	pop
+
+	push(0) wa4 pop
+
+	push(0) wa3
+:GET_CURRENT_LETTER	pop
+	str_get_substr(ra0, ra3, ra3) pop
+	change_type(STRING, BYTE) pop
+
+	jg(39) ISLETTER
+	push(30) - wa1 pop
+	goto NEXT_LETTER
+:ISLETTER
+	jg(60) ISSMALL
+	push(37) - wa1 pop
+	goto NEXT_LETTER
+:ISSMALL
+	push(57) - wa1 pop
+	goto NEXT_LETTER
+:NEXT_LETTER
+
+	ra4
+	push(4)
+	<< wa4
+	ra1 + wa4 pop
+
+	ra3 je(7) STOP_PARSING
+	push(1) + wa3
+	goto GET_CURRENT_LETTER
+
+:STOP_PARSING
+	;rff call_func SET_DEBUG_LEVEL pop
+	ra4
+ 	popa()
+ 	ret_func
+ 	end_func
+
+}
+@UNEXTRACT_INI ; [Yilin Qu] 2011.7.14
+{
+	id=1
+	fmt=tsc_library
+	func UNEXTRACT_INI
+
+	pusha()
+	wa0 pop ;full file path
+
+	str_rsearch_substr(ra0,"\") je(0) END pop w00 pop	
+	str_len(ra0) je(0) END push(1) - w01 pop
+	str_get_substr(ra0, 0, r00) je(0) END pop w02 pop		;02= ini file path
+	r00 push(1) + w00 pop
+	str_get_substr(ra0, r00, r01) je(0) END pop w03 pop		;03= ini file name
+	extract_attach_file(" ",r02,r03)
+ 	
+:END 
+	popa()
+ 	ret_func
+ 	end_func
+}
+@IS_STR_MATCH		;[Yilin Qu] 2011.4.02
+{
+	id=1
+	fmt=tsc_library
+	
+	func IS_STR_MATCH
+	pusha()
+	wa0 pop 		;string1 (regexp)
+	wa1 pop			;string2
+	wa2	pop			;bmatchcase
+	;push(0) call_func SET_DEBUG_LEVEL wff pop
+	
+	;check 0-length string
+	str_len(ra0) wb0 pop
+	str_len(ra1) wb1 pop
+	rb0 rb1 | je(0) MATCH pop
+	rb0 je(0) NOT_MATCH pop
+	rb1 je(0) NOT_MATCH pop	
+	
+	;check be regular expression
+	str_get_substr(ra0,0,0) je(0) NOT_MATCH pop w20 pop
+	strcmpi(r20,"^") je(0) NO_REGEXP pop
+	str_len(ra0) push(1) - w21 pop
+	str_get_substr(ra0,r21,r21) je(0) NOT_MATCH pop w23 pop
+	strcmpi(r23,"$") je(0) NO_REGEXP pop
+	
+	regular_expression_match(ra1, ra0, ra2) goto END	
+
+:NO_REGEXP pop
+	strcmpi(ra0,ra1) je(0) NOT_MATCH
+	
+:MATCH pop
+	push(0)
+	push(1) goto END
+:NOT_MATCH pop
+	push(0) goto END	
+:END
+	;rff call_func SET_DEBUG_LEVEL pop	
+ 	popa()
+ 	ret_func
+ 	end_func
+}
+@EXPAND_KEYWORD	;[Yilin Qu] 2011.4.02
+{
+	id=1
+	fmt=tsc_library
+	
+	func EXPAND_KEYWORD
+	pusha()
+	wa0 pop 		;string to be expand
+	wa1 pop 		;KeyWordContent
+	;push(0) call_func SET_DEBUG_LEVEL wff pop
+	push(0) w80 pop
+	
+	push_hex_string("{") ra1 push_hex_string("}") + + wa1 pop
+	push_hex_string("%KeyWord%") wfe pop
+	
+	;[0~c0]%KeyWord%[c1~c2]
+:EXPAND	
+	str_search_substr(ra0, rfe) je(0) EXPAND_END pop wb0 pop 	;b0=begin position in string
+	rb0 push(1) - wc0 pop	
+	str_len(rfe) rb0 + wc1 pop
+	str_len(ra0) push(1) - wc2 pop
+	
+	str_get_substr(ra0, 0, rc0) je(0) END pop wd0 pop
+	str_get_substr(ra0, rc1, rc2) je(0) END pop wd1 pop
+	rd0 ra1 rd1 + + wa0 pop
+	goto EXPAND
+	
+:EXPAND_END
+	push(1) w80 pop
+	;ra0 push(1)
+:END
+	;rff call_func SET_DEBUG_LEVEL pop
+	ra0 r80
+ 	popa()
+ 	ret_func
+ 	end_func
+}
+@EXPAND_ENVIVARI			;[Yilin Qu] 2011.4.02
+{
+	id=1
+	fmt=tsc_library
+	
+	func EXPAND_ENVIVARI
+	pusha()
+	
+	wa0 pop 		;string to be expand
+	;push(0) call_func SET_DEBUG_LEVEL wff pop
+	push(0) w88 pop
+	ra0 w99 pop
+	
+	str_get_substr(ra0,0,0) je(0) END pop w20 pop
+	strcmpi(r20,"^") je(0) NO_REGEXP pop
+	str_len(ra0) push(1) - w21 pop
+	str_get_substr(ra0,r21,r21) je(0) END pop w23 pop
+	strcmpi(r23,"$") je(0) NO_REGEXP pop	
+	
+	
+:EXPAND
+	str_search_substr(ra0,"%") je(0) EXPANDED pop wb0 pop
+	str_len(ra0) wb1 pop
+	
+	rb0 push(1) + w00 pop
+	rb1 push(1) - w01 pop
+	
+	str_get_substr(ra0,r00,r01) je(0) END pop wd1 pop
+	str_search_substr(rd1,"%") je(0) EXPANDED pop wb2 pop
+	
+	rb0 rb2 push(1) + + wb3 pop
+	str_get_substr(ra0, rb0, rb3) je(0) END pop wee pop ;ee= %environment%
+	str_expand(ree) je(0) END pop wef pop				;ef= expanded envirnment
+	
+	push(0) w50 pop	;50=position to begin	
+:MODIFY	
+	str_get_substr(ref,0,r50) je(0) MODIFIED pop wd3 pop 	;d3 = prefix string no need to handle
+	r50 push(1) + w50 pop
+	str_len(ref) push(1) - wb4 pop
+	
+	str_get_substr(ref,r50,rb4) je(0) MODIFIED pop wd4 pop	;d4= string to handle
+	
+	str_search_substr(rd4, "\") je(0) MODIFIED pop wb5 pop
+	str_len(rd4) wb6 pop
+	rb5 push(1) + wb8 pop
+	rb6 push(1) - wb9 pop
+	rb5 push(1) - wba pop
+	str_get_substr(rd4,0,rba) je(0) END pop wd5 pop
+	str_get_substr(rd4,rb8,rb9) je(0) END pop wd6 pop
+	
+	rd3 rd5 + push_hex_string("\\") + wef pop
+	str_len(ref) push(1) - w50 pop
+	ref rd6 + wef pop
+	goto MODIFY
+:MODIFIED	
+
+	;[0~c0]%environment%[c1~c2]
+	;e0+expanded+e1
+	
+	rb0 push(1) - wc0 pop
+	str_get_substr(ra0, 0, rc0) je(0) END pop we0 pop
+	
+	rb3 push(1) + wc1 pop
+	r01 wc2 pop
+	str_get_substr(ra0, rc1, rc2) je(0) END pop we1 pop
+	
+	ra0 we2 pop
+	re0 ref re1 + + wa0 pop
+	
+	strcmpi(re2,ra0) je(0) EXPAND
+
+:EXPANDED pop
+	ra0 w99 push(1) w88 pop pop
+	goto END
+	;goto FINISHED
+	
+:NO_REGEXP
+	str_expand(ra0) je(0) END pop
+	w99 push(1) w88 pop pop
+	goto END
+	;goto FINISHED
+
+:END 
+;:FINISHED
+	;rff call_func SET_DEBUG_LEVEL pop
+	r99 r88
+ 	popa()
+ 	ret_func
+ 	end_func
+}
+@SCAN_FILE_EXIST		;[Yilin Qu] 2011.4.26
+{
+	id=1
+	fmt=tsc_library
+	
+	func SCAN_FILE_EXIST
+	pusha()
+	wa0 pop 		;FilePath string contain
+	wa1 pop 		;FileName
+	wa2 pop 		;Expanded KeyWord 
+	wa3 pop		;KeyWordContent String
+	wa4 pop		;Is a folder
+	wa5 pop		;string array handle
+	
+	push(0) w88 pop					;88= find result
+	;push(0) call_func SET_DEBUG_LEVEL wff pop		
+	str_expand(ra0) je(0) NO_EXPAND pop wa0
+:NO_EXPAND pop
+	str_len(ra0) push(1) - w25 pop
+	str_get_substr(ra0,r25,r25) je(0) SEARCH_FILE_END pop w26 pop
+	strcmpi(r26,"\") jne(0) SLASH_END pop
+	ra0 push_hex_string("\") + wa0 
+:SLASH_END pop
+	
+;---------------handle FileName with %KeyWord%---------------
+	str_len(ra3) je(0) SKIP_KW pop
+	str_exist_substr(ra1,"%KeyWord%") je(0) SKIP_KW pop
+	ra3 ra1 call_func EXPAND_KEYWORD je(0) SEARCH_FILE_END pop wa1 
+:SKIP_KW pop	
+;----------------Scan File  -------start-------------	
+	str_get_substr(ra1,0,0) je(0) SEARCH_FILE_END pop w20 pop
+	strcmpi(r20,"^") je(0) NO_REGEXP pop
+	str_len(ra1) push(1) - w21 pop
+	str_get_substr(ra1,r21,r21) je(0) SEARCH_FILE_END pop w23 pop
+	strcmpi(r23,"$") je(0) NO_REGEXP pop
+
+	ra4 je(0) IS_FILE_1st pop					
+		H_subfolders(ra0,ra1) je(0) SEARCH_FILE_END pop w24 pop		;24=search folder handle
+		H_subfolders_first() goto MATCHED_FILE
+	:IS_FILE_1st pop
+		H_subfiles(ra0,ra1) je(0) SEARCH_FILE_END pop w24 pop			;24=search file handle
+		H_subfiles_first() 
+	
+:MATCHED_FILE
+	je(0) REGEXP_END pop w2e pop
+	
+	push(0)
+	r2e
+	ra1
+	call_func IS_STR_MATCH je(0) NEXT_FILE pop
+	
+	je(0) MATCHED pop we0 pop
+	str_len(ra2) jne(0) MATCH_KW pop
+	re0 wa2 goto MATCHED
+	
+:MATCH_KW pop
+	strcmpi(ra2,re0) je(0) NEXT_FILE 
+	
+:MATCHED pop	
+	ra0 r2e + w99 pop					;99=full file path\file name
+	ra4 je(0) APPEND pop 	
+	r99 push("\") + w99 pop
+	
+	:APPEND
+		r99 H_array_append(ra5,1) je(0) REGEXP_END pop		
+	push(1) w88 pop				
+	goto NEXT_FILE
+
+:NEXT_FILE
+	ra4 je(0) IS_FILE_2nd pop 
+		H_subfolders_next() goto MATCHED_FILE
+	:IS_FILE_2nd pop
+		H_subfiles_next() goto MATCHED_FILE
+
+:REGEXP_END 
+	H_use(r24)
+	H_close()
+	goto SEARCH_FILE_END
+	
+:NO_REGEXP
+	ra0 ra1 + w99 pop	;99=full file path
+	
+	ra4 je(0) IS_FILE_3rd pop 
+		folder_exist(r99) je(0) SEARCH_FILE_END pop	
+		r99 push("\") + w99 pop
+		r99 H_array_append(ra5,1) w88 pop		
+		goto SEARCH_FILE_END
+	:IS_FILE_3rd pop
+		file_exist(r99) je(0) SEARCH_FILE_END pop
+		r99 H_array_append(ra5,1) w88 pop		
+	
+:SEARCH_FILE_END
+ 	;rff call_func SET_DEBUG_LEVEL pop
+	r88 je(0) RET pop		
+	ra2 r88
+:RET
+ 	popa()
+ 	ret_func
+ 	end_func
+}
+@SCAN_OBJECT		;[Yilin Qu] 2011.4.26
+{
+	id=1
+	fmt=tsc_library
+
+	func SCAN_OBJECT
+	pusha()
+	
+	wa0 pop ;Object type string
+	wa1 pop ;Object name
+	we1 pop ;Expanded Keyword
+	we0 pop ;KeyWordContent
+	
+	push(0) w88 pop
+	str_exist_substr(ra0, "mutant") jne(0) MUTANT pop
+	str_exist_substr(ra0, "event") jne(0) EVENT pop
+	str_exist_substr(ra0, "semaphore") jne(0) SEMAPHORE pop
+	goto END	
+	
+:MUTANT pop
+	push(0) wd3 goto OBJECT_SCAN
+:EVENT pop
+	push(1) wd3 goto OBJECT_SCAN
+:SEMAPHORE pop
+	push(2) wd3														 			;d3=object type (DWORD)
+	
+:OBJECT_SCAN pop	
+		
+	;handle object name with %KeyWord%
+	str_len(re0) je(0) KEYWORD_PASS pop
+	str_exist_substr(ra1,"%KeyWord%") je(0) KEYWORD_PASS pop
+	re0 ra1 call_func EXPAND_KEYWORD je(0) END pop wa1	;a1=object name regular expression
+	
+:KEYWORD_PASS pop
+	;-----check mutex/event/semaphore-----	
+		get_named_object_first(rd3) 	
+	:CHECK_OBJ 
+		je(0) END pop wd5 pop												;d5=found object name
+	
+		;currently, named object scaned case insensitive---------------------------------------should be case sensitive!!!
+		;push(1)
+		push(0)
+		rd5 ra1 call_func IS_STR_MATCH je(0) NEXT_OBJ pop
+		je(0)  MATCHED pop wd6 pop 									;d6=match group string	
+		str_len(re1) jne(0) MATCH_KW pop
+		rd6 we1 goto MATCHED	
+	:MATCH_KW pop
+		strcmpi(rd6,re1) jne(0) MATCHED 
+
+	:NEXT_OBJ pop
+		get_named_object_next(rd3) 
+		goto CHECK_OBJ
+	
+:MATCHED pop		
+	push(1) w88 
+:END pop
+	r88 je(0) RET pop
+	re1 rd5 r88 
+:RET
+ 	popa()
+ 	ret_func
+ 	end_func
+}
+@GET_STR_IN_ANGE;		;[Yilin Qu] 2011.4.02 
+{
+	id=1
+	fmt=tsc_library
+
+	func GET_STR_IN_ANGE
+	pusha()
+	wa0 pop;input string
+	wa1 pop;index
+	
+	;push(0) call_func SET_DEBUG_LEVEL wff pop	
+	push(0) w88 pop
+	ra1 
+	je(1) FIRST_CONTENT	;1st content
+	je(2) SECOND_CONTENT; 2nc content
+	goto END
+	
+:FIRST_CONTENT pop
+	str_search_substr(ra0,"<") je(0) END pop push(1) + w00 pop
+	str_search_substr(ra0,">") je(0) END pop push(1) - w01 pop
+	str_get_substr(ra0, r00,r01) je(0) END pop wb0 pop					;b0=content1
+	push(1) w88 
+	goto END
+	
+:SECOND_CONTENT pop
+	str_search_substr(ra0,"<") je(0) END pop w00 pop
+	str_search_substr(ra0,">") je(0) END pop w01 pop
+	str_get_substr(ra0, r00,r01) je(0) END pop w02 pop				;02=<content1>	
+	str_del_substr(ra0, r02) je(0) END pop w03 pop					;03=<content2>
+	str_search_substr(r03,"<") je(0) END pop push(1) + w04 pop
+	str_rsearch_substr(r03,">") je(0) END pop push(1) - w05 pop
+	str_get_substr(r03, r04,r05) je(0) END pop wb0 pop				;b0=content2
+	push(1) w88 
+	goto END
+	
+:END pop
+;	r88 je(0) RET
+;	pop rb0 r88
+;:RET
+	;rff call_func SET_DEBUG_LEVEL pop
+	rb0 r88
+	popa()
+ 	ret_func
+ 	end_func
+}
+@SCAN_AUTORUN;		;[Yilin Qu] 2011.4.26
+{
+	id=1
+	fmt=tsc_library
+
+	func SCAN_AUTORUN
+	pusha()
+	
+	wa2 pop ;Image File path
+	wa1 pop ;Entry 	
+	wa0 pop ;AutoRunType
+	wa4	pop	;KeyWordContent
+	wa5 pop ;Expanded KeyWrod
+	
+	str_len(ra0) je(0) END pop 		;should not null AutoRun string
+	str_len(ra2) je(0) END pop		;should not null File path
+	;push(0) w88 pop 				;88=return result
+	
+	;push(0) call_func SET_DEBUG_LEVEL wff pop
+	
+:EXPAND_ENTRY	
+	ra4 ra1 call_func EXPAND_KEYWORD je(0) EXPAND_FILE pop wa1 
+:EXPAND_FILE pop
+	ra4 ra2 call_func EXPAND_KEYWORD je(0) EXPAND_END pop wa2
+:EXPAND_END	pop
+
+	ra2 call_func EXPAND_ENVIVARI je(0) NO_EXPAND pop wa2
+:NO_EXPAND pop
+
+;-------------------Handle TASK_SCHEDULER---------------------
+;	strcmpi(ra0,"TASK_SCHEDULER") je(0) TASK_SCHED_END pop
+;	check_scheduled_tasks_by_filename(ra2, 0)
+
+;:TASK_SCHED_END
+;------------------------------------------------------------------
+
+	push(0) wc0 pop
+:CHECK_AUTORUN
+	;rff call_func SET_DEBUG_LEVEL pop
+	check_reg_autorun_method(ra0,rc0,0)
+	je(0) FAIL_RET pop 
+	w00 pop 				;00=full file path
+	w01 pop				;01=entry
+	w02 pop				;02=index
+	w03 pop				;03=Clean Autorun Type
+	w04 pop 				;04=Registry KeyPath
+	w05 pop				;05=Registry ValueName
+	w06 pop				;06=Registry Data String
+	;push(0) call_func SET_DEBUG_LEVEL wff pop
+	ra5 we1 pop			;e1= Expanded KeyWord
+	str_len(ra1) je(0) MATCH_FILE pop
+	
+	push(0) ;case insensitive
+	r01
+	ra1
+	call_func IS_STR_MATCH je(0) NEXT_AUTORUN pop
+	je(0) MATCH_FILE pop	;match group count 
+	we0 pop							
+	str_len(re1) jne(0) MATCH_KW1 pop
+	re0 we1 goto MATCH_FILE
+	
+:MATCH_KW1 pop
+	strcmpi(re1,re0) je(0) NEXT_AUTORUN 
+:MATCH_FILE pop
+	push(0) ;case insensitive
+	r00
+	ra2
+	call_func IS_STR_MATCH je(0) NEXT_AUTORUN pop
+	je(0) MATCHED pop we0 pop
+	str_len(re1) jne(0) MATCH_KW2 pop
+	re0 we1 goto MATCHED
+	
+:MATCH_KW2 pop
+	strcmpi(re1,re0) je(0) NEXT_AUTORUN 
+	
+:MATCHED pop	
+	file_exist(r00) je(0) NEXT_AUTORUN pop
+	;rff call_func SET_DEBUG_LEVEL pop
+	r06 r05 r04 r03 r01 r00 re1	push(1) goto END
+	
+:NEXT_AUTORUN pop
+	r02 push(1) + wc0 pop
+	goto CHECK_AUTORUN
+	
+:FAIL_RET
+	pop
+	;rff call_func SET_DEBUG_LEVEL pop
+	push(0)
+:END 
+	popa()
+ 	ret_func
+ 	end_func
+}
+
+@DECRYPTSTRING ;AllanS *** LIBRARY *** decrypt the inputted string
+							;modified [Yilin Qu] 2011.5.17
+{
+	id=1
+	fmt=tsc_library
+
+	func DecryptString
+	pusha()
+	wa6 pop ;decryption key
+	wa0 pop ;string
+	;push(0) call_func SET_DEBUG_LEVEL wff pop
+	
+	str_len(ra6)   
+	push(1) - wc0 
+	push(1) - wc1 pop
+	
+	str_get_substr(ra6, rc0, rc0) pop
+	str_get_substr(ra6, rc1, rc1) pop + wa1 pop
+
+	ra1
+	change_type(STRING, DWORD) pop
+	wb1 ;decryption key in dword
+	pop
+
+	push("") wb4 pop ;rb4 = return string
+
+:LOOPS
+	str_get_substr(ra0, 0, 3) jne(1) NO_MORE_SUBSTR	pop wa2 pop
+	str_del_substr(ra0, ra2) pop wa0 pop
+
+	ra2
+	call_func STR_TO_DWORD 
+
+	rb1 ^ 
+	push(ffff) ^ 
+
+	change_type(DWORD, STRING) pop
+	wb5 pop ;pop pop
+
+	rb4 rb5 + ;concatenate string
+	wb4 pop
+	goto LOOPS
+
+:NO_MORE_SUBSTR
+	pop
+	;rff call_func SET_DEBUG_LEVEL pop
+	rb4
+:ENDNA
+
+	popa()
+	ret_func
+	end_func
+}
+
+
+@SERIES_INI_STR	;[Yilin Qu] 2011.4.02
+{
+	id=1
+	fmt=tsc_library
+	
+	func SERIES_INI_STR
+	pusha()
+	wa4 pop			;0/1: Engine version >= 7.0
+	wa0 pop 		;array handle 
+	wa1 pop			;string prefix
+	wa2 pop			;ini file handle
+	wa3 pop			;section name string
+	
+	;push(0) call_func SET_DEBUG_LEVEL wff pop
+	push(0) w8c pop									;8c=return count
+	push(0) wc0 											;c0=Item index, from 01 to ff
+	
+:START_NEXT pop
+	rc0 push(1) + wc0 jg(ff) END			;c0++
+	
+	call_func DWORD_TO_STR wb1 pop
+	str_convert(rb1,1) je(0) START_NEXT pop wb1 pop	
+	str_get_substr(rb1, 6, 7) je(0) START_NEXT pop wb1 pop
+	ra1 rb1 + wb1 pop																		;b1=Prefix_Index, etc. Object_01	
+	H_use(ra2)
+	ra4 je(0) NON_RULE_INI
+	pop
+	H_rule_ini_get_key_str(ra3, rb1) je(0) END pop 
+	goto DECRYPT_RULE
+:NON_RULE_INI
+	pop
+	H_ini_get_key_str(ra3, rb1) je(0) END pop 
+:DECRYPT_RULE
+	ra3 ;decryption
+	call_func DecryptString	wb2 pop															;b2=<FirstString>(<SecondString>)
+	
+	push(1) rb2
+	call_func GET_STR_IN_ANGE je(0) START_NEXT pop 	wb3 pop			;b3=FirstString
+	
+	push_hex_string("") wb4 pop
+	push(2) rb2
+	call_func GET_STR_IN_ANGE je(0) ARRAY_APPEND pop wb4 pop		;b4=SecondString
+
+:ARRAY_APPEND
+	rb4 rb3 rb1 H_array_append(ra0,3) je(0) END pop							; Prefix_01, FirstString01, SecondString01, Prefix_02, FirstString02, SecondString02...
+		
+	push(1) r8c + w8c pop
+	goto START_NEXT		
+
+:END	pop
+	;rff call_func SET_DEBUG_LEVEL pop
+	r8c
+ 	popa()
+ 	ret_func
+ 	end_func
+}
+@REPORT_VIRUS	;[Yilin Qu] 2011.4.26
+{
+	id=1
+	fmt=tsc_library
+	
+	func REPORT_VIRUS
+	pusha()
+	wa0 pop 			;array handle (in)
+	wa1 pop			;dword scan/clean section
+	wa2 pop			;dword ScanOrCleanResult
+	wa3 pop			;string Virus Name
+	wa4 pop			;file array handle (out)
+	
+	push(1) w88 pop ;report result
+	push(0) w8c pop ;count of files added
+	
+	H_array_get_first(ra0) je(0) END pop wd1 pop								;d1=Type(string)
+	H_array_get_next(ra0) je(0) END pop wd2 pop								;d2=ItemPath
+	H_array_get_next(ra0) je(0) END pop wd3 pop								;d3=KeyValue
+	H_array_get_next(ra0) je(0) END pop wd4 pop								;d4=ValueData
+
+:REPORT_ONE
+	rd1 call_func STR_TO_DWORD  wd1 pop										;d1= Type(dword)
+	report_virus_info(ra3, rd1, rd2, rd3, rd4, 0, ra1, ra2) r88 & w88 pop
+	
+	rd1 jg(0) NEXT_ONE pop										;add file to file array
+	check_file_wl(rd2,ffffffff) 
+	jne(0) NEXT_ONE pop                			 ;if no white list check hit, but error happened in check_file_wl, we theate this file is normal file			
+	jne(0) NEXT_ONE pop               			 ;if at lest one white list check hit, it is normal file				
+	;pop jne(0) NEXT_ONE	pop		;file path is in White List
+	
+	ra3 rd2 
+	H_array_append(ra4,2)  r88 & w88 pop
+	push(1) r8c + w8c pop											;8c++
+
+:NEXT_ONE		
+	H_array_get_next(ra0) je(0) END pop wd1 pop								;d1=Type(string)
+	H_array_get_next(ra0) je(0) END pop wd2 pop								;d2=ItemPath
+	H_array_get_next(ra0) je(0) END pop wd3 pop								;d3=KeyValue
+	H_array_get_next(ra0) je(0) END pop wd4 pop								;d4=ValueData
+	
+	goto REPORT_ONE
+
+:END	pop
+	r8c r88
+ 	popa()
+ 	ret_func
+ 	end_func
+}
+@SCAN_AUTO_INF	;[Yilin Qu] 2011.4.26
+{
+	id=1
+	fmt=tsc_library
+	
+	func SCAN_AUTO_INF
+	pusha()
+	wa0 pop 			;array handle 
+	wa1 pop			;dword CRC 
+	wa2 pop			;autorun.inf file name
+	
+	push(0) w88 pop				;scan result
+	
+	push(41) wc0 pop				;change byte in c0 to string, 0x41 is ASCII of "A"
+:START_DISC
+	rc0 change_type(BYTE, STRING)
+	je(0) NEXT_DISC pop w00 pop		
+	r00 push(":\") ra2 + + w00															;00=file path in disc root path, etc."A:\autorun.inf"
+		
+	H_ini_file(r00) je(0) NEXT_DISC pop w01 pop  								;01=handle ini file
+	
+	 H_ini_get_key_str("autorun", "open") call  #CHECK_CRC r88 | w88 pop
+	 H_ini_get_key_str("autorun", "shellexecute") call  #CHECK_CRC 	 r88 | w88 pop
+	 H_ini_get_key_str("autorun", "shell\explore\command") call  #CHECK_CRC  r88 | w88 pop
+	 H_ini_get_key_str("autorun", "shell\open\command") call  #CHECK_CRC  r88 | w88 pop
+	 H_ini_get_key_str("autorun", "shell\auto\command") call  #CHECK_CRC  r88 | w88 pop
+	 
+	 H_ini_get_key_str("autorun", "shell") je(0)	CLOSE_INI pop w05 pop	;05= shell =defaultverb
+	 push("shell\") r05 push("\command") + + w06 pop							;06= shell\defaultverb\command
+	 H_ini_get_key_str("autorun", r06) call  #CHECK_CRC  r88 | w88 pop
+	 
+	 r88 je(0) CLOSE_INI pop
+	 ; save	"Type", "ItemPath", "KeyValue", "ValueData" 		for callback report; type=file
+	push("") push("") r00 push("0")
+	H_array_append(ra0,4) r88 | w88 pop
+	
+	:CLOSE_INI
+		 H_use(r01)
+		 H_close()
+:NEXT_DISC
+	rc0 push(1) + wc0 jg(5a)	END													;c0++, c0<=0x5a , ASCII of "Z"
+	goto START_DISC
+	
+:#CHECK_CRC
+	je(0) 	RET_CRC pop w03 pop														;03=file path
+	file_exist(r03) je(0) RET_CRC pop
+	check_file_with_crc(r03,ra1,0) je(0) RET_CRC pop
+	
+	; save	"Type", "ItemPath", "KeyValue", "ValueData" 		for callback report; type=file
+	push("") push("") r03 push("0")
+	H_array_append(ra0,4) je(0) RET_CRC pop
+	push(1)
+:RET_CRC
+	ret
+
+:END	
+	r88 
+ 	popa()
+ 	ret_func
+ 	end_func
+}
+@PACU_SCAN_1 ;[Yilin Qu] 2011.05.17
+{
+	id=1
+	fmt=tsc_library
+
+	func PACU_SCAN_1
+
+	pusha()
+	wa3 pop ;0/1: Engine version >= 7.0
+	wa1 pop	;a1=section name
+	wa0 pop	;a0 =ini file handle
+	wa2 pop	;a2 = array handle for report
+	push(0) w88 pop											;88= scan result ( non zero success )
+	
+	H_array(STRING) je(0) END pop w5f pop 		 		;5f= array save "FileLabel" ,"file path" for CRC calculate use
+;----------------------------------------------------Get Virus Name----------------------------------------------------
+	H_use(ra0)
+	ra3 je(0) NON_RULE_INI
+	pop
+	H_rule_ini_get_key_str(ra1, "02") je(0) DETECT_END pop
+	goto DECRYPT_RULE
+:NON_RULE_INI
+	pop
+	H_ini_get_key_str(ra1, "02") je(0) DETECT_END pop
+:DECRYPT_RULE
+	ra1 ;decryption
+	call_func DecryptString		
+	we2 pop 		
+	
+	push(1) re2
+	call_func GET_STR_IN_ANGE je(0) DETECT_END pop we2 pop						;e2=Virus Name						
+;-----------------------------------------------------------------------Get KeyWord------------------------------------	
+	push_hex_string("") we0 we1 pop																;e1=Expanded KeyWord						
+	H_use(ra0)
+	ra3 je(0) NON_RULE_INI_1
+	pop
+	H_rule_ini_get_key_str(ra1, "03") je(0) KEYWORD_DONE pop
+	goto DECRYPT_RULE_1
+:NON_RULE_INI_1
+	pop
+	H_ini_get_key_str(ra1, "03") je(0) KEYWORD_DONE pop
+:DECRYPT_RULE_1
+	ra1 ;decryption
+	call_func DecryptString		
+	we0 pop 																							
+	
+	push(1) re0
+	call_func GET_STR_IN_ANGE je(0) DETECT_END pop we0 pop						;e0=KeyWordContent	
+	
+	;remove "^" and "$" in the ^regexp$
+	str_search_substr(re0,"^") je(0) DETECT_END pop jne(0) DETECT_END pop
+	str_len(re0) w00 pop
+	str_rsearch_substr(re0,"$") je(0) DETECT_END pop w01 pop
+	r00 r01 - jne(1) DETECT_END pop
+	r01 push(1) - w01 pop
+	str_get_substr(re0,1,r01) je(0) DETECT_END pop we0 pop													
+	
+:KEYWORD_DONE pop
+;------------------------------------------------Signatures Scan Start---------------------------------------
+	push(0) wca wcb wcc 											;initialize ca, cb, cc
+	
+	push("51") wee pop
+	push("A0")	wed pop
+	push(0) web pop
+	call #SCAN_AUTORUN_FILE je(0) DETECT_END pop wc9 wca pop			;ca=found image file count
+
+	push("52") wee pop
+	push(0) web pop
+	push(0) wea pop
+	call #SCAN_FILE je(0) DETECT_END pop rc9 wcc pop							;cc=found file count
+		
+	push("50") wee pop
+	call #SCAN_OBJ je(0) DETECT_END pop rc9 wcb pop							;cb=found object count
+;-----------------------------------------------------Signatures Scan End-------------------------------------	
+	rca rcb rcc + + je(0) DETECT_END pop
+	push(1) w88 pop 	; at least one item (object or file) found, then virus found
+;------------------------------------------------Delete Items Scan Start---------------------------------------
+	push("61") wee pop
+	push("B1")	wed pop
+	push(1) web pop
+	call #SCAN_AUTORUN_FILE pop
+
+	push("62") wee pop
+	push(1) web pop
+	push(0) wea pop
+	call #SCAN_FILE pop
+
+	push("60") wee pop
+	push(1) web pop
+	push(1) wea pop
+	call #SCAN_FILE pop
+
+	push("53") wee pop	
+	push("B0") wed pop
+	push("63") wec pop
+	push(1) web pop
+	call #SCAN_CRC pop
+
+	goto DETECT_END
+;-----------------------------------------------------------------------Image File with AutoRun Scan Start---------------------------------------		
+:#SCAN_AUTORUN_FILE																			;ee=FileLabelPrefix, "ImageFile_"or "D_ImageFile_"
+																											;ed="AutoRun_" or "D_AutoRun_"	
+																											;eb=if force to scan all even some one not scanned
+	push(0) w80 pop																				;80=image file scan result	
+	H_array(STRING) je(0) RET_AUTORUN_FILE pop w50 pop 							;50= array save "FileLabel","AutoRunImageFile", ""
+	ra1 ra0 ree r50 ra3
+	call_func SERIES_INI_STR je(0) FINISH_IMAGE_SCAN wc9 pop			;c9= read IMAGE file count 
+	
+	H_array_get_first(r50) je(0) STOP_IMAGE_SCAN pop wd0 pop						;d0= Filelabel		
+	H_array_get_next(r50) je(0) STOP_IMAGE_SCAN pop wd1 pop						;d1= image file path
+	H_array_get_next(r50) je(0) STOP_IMAGE_SCAN pop pop
+	
+	push(1) wc0 	pop																				;c0=ImageFile Item index, from 01 to c9, used for SCAN circle		
+:START_NEXT_IMAGE 					
+	rc0 call_func DWORD_TO_STR wd2 pop		
+	str_convert(rd2,1) je(0) STOP_IMAGE_SCAN pop wd2 pop
+	str_get_substr(rd2, 6, 7) je(0) STOP_IMAGE_SCAN pop wd2 pop						
+	;red rd2 push("_") + + wd2 pop															;d2=AutoRun_Index_, etc. AutoRun_01_ (STRING)		
+	red rd2 + wd2 pop																			;d2=AutoRun_Index_, etc. A001 (STRING)	
+	
+	push(0) w81 pop																				;81=auto run scan result
+	H_array(STRING) je(0) STOP_IMAGE_SCAN pop w51 pop								;51= array save "Label","AutoRunType","Entry"	
+	
+	ra1 ra0 rd2 r51 ra3
+	call_func SERIES_INI_STR je(0) STOP_AUTORUN_SCAN wc6 pop			;c6= read auto run count 	
+	
+	H_array_get_first(r51) je(0) STOP_AUTORUN_SCAN pop pop							;pop label
+	H_array_get_next(r51) je(0) STOP_AUTORUN_SCAN pop wd3 pop					;d3= Autorun type
+	H_array_get_next(r51) je(0) STOP_AUTORUN_SCAN pop wd4 pop					;d4= Entry
+	
+	push(1) wc1 	pop																						;c1=AutoRun Item index, from 01 to c6
+:START_NEXT_AUTORUN
+	push("call func SCAN_AUTORUN") pop ;only for debug log
+	re1 re0 rd3 rd4 rd1
+	call_func SCAN_AUTORUN w00 je(0) NO_AUTORUN pop
+	we1 pop	;e1= Expanded KeyWord
+	wd5 pop	;found file path
+	wd6 pop 	;found entry		
+	wd7 pop	;Clean Autorun Type: 0=registry key; 1=registry value; 2=registry value string data;
+	wd8 pop 	;Registry KeyPath
+	wd9 pop	;Registry ValueName
+	wda pop	;Registry Data String
+	
+	rc1 jne(1) SKIP_SAVE_IMAGE pop
+	; save 	"FileLabel", "file path" 	for CRC use
+	rd5 rd0 
+	H_array_append(r5f,2) je(0) STOP_AUTORUN_SCAN pop
+	
+	; save	"Type", "ItemPath", "", "" 		for callback report; type=file
+	push("") push("") rd5 push("0") 
+	H_array_append(ra2,4) je(0) STOP_AUTORUN_SCAN pop
+	
+	:SKIP_SAVE_IMAGE
+	rd7 push(2) + call_func DWORD_TO_STR wd7 pop										
+	
+	;NOTE: the integration fo r HouseCall need report "registry value string data" for all registry key/value/data
+	push("4") wd7 pop	
+	
+	; save	"Type", "ItemPath", "KeyValue", "ValueData" 		for callback report; type=registry key/value/data
+	rda rd9 rd8 rd7
+	H_array_append(ra2,4) je(0) STOP_AUTORUN_SCAN pop
+
+:NO_AUTORUN	
+	r00 reb | je(0) STOP_AUTORUN_SCAN pop
+	rc1 push(1) + wc1 rc6  - je(1) FINISH_AUTORUN_SCAN pop								;c1++ and (c1<=c6)
+	H_array_get_next(r51) je(0) STOP_AUTORUN_SCAN pop pop 
+	H_array_get_next(r51) je(0) STOP_AUTORUN_SCAN pop wd3 pop					;d3= Autorun type
+	H_array_get_next(r51) je(0) STOP_AUTORUN_SCAN pop wd4 pop					;d4= Entry
+	goto START_NEXT_AUTORUN
+	
+:FINISH_AUTORUN_SCAN
+	push(1) w81 
+:STOP_AUTORUN_SCAN pop
+	H_use(r51)
+	H_close()	
+	r81 je(0) STOP_IMAGE_SCAN pop
+
+	rc0 push(1) + wc0 rc9 - je(1) FINISH_IMAGE_SCAN	pop								;c0++ and (c0<=c9)
+	H_array_get_next(r50) je(0) STOP_IMAGE_SCAN pop wd0 pop						;d0= Filelabel		
+	H_array_get_next(r50) je(0) STOP_IMAGE_SCAN pop wd1 pop						;d1= image file path
+	H_array_get_next(r50) je(0) STOP_IMAGE_SCAN pop pop	
+	goto START_NEXT_IMAGE
+
+:FINISH_IMAGE_SCAN pop
+	push(1) w80
+:STOP_IMAGE_SCAN pop
+	H_use(r50)
+	H_close()
+:RET_AUTORUN_FILE pop
+	r80 	
+	ret
+;-----------------------------------------------------------------------Image File with Autorun Scan End---------------------------------------
+;-----------------------------------------------------------------------File Scan Start-------------------------------------------------------------
+:#SCAN_FILE																							;ee=FileLabelPrefix, "FilePath_"or "D_FilePath_"
+																											;eb=if force to scan all even some one not scanned
+																											;ea=Is folder(1) ; Is file(0)
+	push(0) w80 pop																				;80= file scan result	
+	H_array(STRING) je(0) RET_FILE pop w50 pop 											;50= array save "FileLabel","FilePath", "FileName"
+	ra1 ra0 ree r50 ra3
+	call_func SERIES_INI_STR je(0) FINISH_FILE_SCAN wc9 pop				;c9= read file count 
+	
+	H_array_get_first(r50) je(0) STOP_FILE_SCAN pop wd0 pop							;d0= Filelabel		
+	H_array_get_next(r50) je(0) STOP_FILE_SCAN pop wd1 pop							;d1= file path
+	H_array_get_next(r50) je(0) STOP_FILE_SCAN pop wd2 pop							;d2= file name
+	
+	push(1) wc0 	pop																				;c0=File Item index, from 01 to c9, used for SCAN circle		
+:START_NEXT_FILE
+	H_array(STRING) je(0) STOP_FILE_SCAN pop w51 pop 							;51= array save exist "FilePath\FileName"
+	push("call func SCAN_FILE_EXIST") pop ;only for debug log
+	r51 rea re0 re1 rd2 rd1
+	call_func SCAN_FILE_EXIST w00 je(0) NO_FILE pop								;00=once find result
+	we1 pop		;e1=Expanded KeyWord					
+	
+	H_array_get_first(r51) w00 je(0) NO_FILE pop wd3 pop							;d3=exist file name
+	:SAVE_FILE_INFO
+		; save 	"FileLabel", "file path" 	for CRC use
+		rd3 rd0 
+		H_array_append(r5f,2) w00 je(0) NO_FILE pop
+	
+		; save	"Type", "ItemPath", "", "" 		for callback report; type=file/folder	
+		rea call_func DWORD_TO_STR wd4 pop
+		push("") push("") rd3 rd4
+		H_array_append(ra2,4) w00 je(0) NO_FILE pop
+	H_array_get_next(r51) je(0) NO_FILE pop wd3 pop
+	goto SAVE_FILE_INFO
+	
+:NO_FILE	
+	H_use(r51)
+	H_close()
+	r00 reb | je(0) STOP_FILE_SCAN pop
+	rc0 push(1) + wc0 rc9 - je(1) FINISH_FILE_SCAN pop									;c0++ and (c0<=c9)
+	
+	H_array_get_next(r50) je(0) STOP_FILE_SCAN pop wd0 pop							;d0= Filelabel		
+	H_array_get_next(r50) je(0) STOP_FILE_SCAN pop wd1 pop							;d1= image file path
+	H_array_get_next(r50) je(0) STOP_FILE_SCAN pop wd2 pop							;d2= file name
+	goto START_NEXT_FILE
+
+:FINISH_FILE_SCAN pop
+	push(1) w80
+:STOP_FILE_SCAN pop
+	H_use(r50)
+	H_close()
+:RET_FILE pop
+	r80 	
+	ret	
+;-----------------------------------------------------------------------File Scan End---------------------------------------
+;-----------------------------------------------------------------------Object Scan Start------------------------------------	
+:#SCAN_OBJ																							;ee=ObjectLabelPrefix, "Object_"
+																											
+	push(0) w80 pop																				;80= object scan result	
+	H_array(STRING) je(0) RET_OBJ pop w50 pop 											;50= array save "ObjLabel","ObjectType", "ObjectName"
+	ra1 ra0 ree r50 ra3
+	call_func SERIES_INI_STR je(0) FINISH_OBJ_SCAN wc9 pop				;c9= read object count 
+	
+	H_array_get_first(r50) je(0) STOP_OBJ_SCAN pop  pop								;Object Label
+	H_array_get_next(r50) je(0) STOP_OBJ_SCAN pop wd1 pop							;d1= ObjectType
+	H_array_get_next(r50) je(0) STOP_OBJ_SCAN pop wd2 pop							;d2= ObjectName
+	
+	push(1) wc0 	pop																				;c0=Object Item index, from 01 to c9, used for SCAN circle		
+:START_NEXT_OBJ
+	re0 re1 rd2 rd1 
+	call_func SCAN_OBJECT je(0) STOP_OBJ_SCAN pop
+	wd3 pop		 	;d3= matched object name
+	we1 pop			;e1=Expanded KeyWord					
+	 
+	rc0 push(1) + wc0 rc9 - je(1) FINISH_OBJ_SCAN pop									;c0++ and (c0<=c9)
+	
+	H_array_get_next(r50) je(0) STOP_OBJ_SCAN pop pop								;Object label	
+	H_array_get_next(r50) je(0) STOP_OBJ_SCAN pop wd1 pop							;d1= ObjectType
+	H_array_get_next(r50) je(0) STOP_OBJ_SCAN pop wd2 pop							;d2= ObjectName
+	goto START_NEXT_OBJ
+
+:FINISH_OBJ_SCAN pop
+	push(1) w80
+:STOP_OBJ_SCAN pop
+	H_use(r50)
+	H_close()
+:RET_OBJ
+	r80	
+	ret
+;-----------------------------------------------------------------------Object Scan End------------------------------------	
+;-----------------------------------------------------------------------CRC Scan Start-------------------------------------------------------------
+:#SCAN_CRC																							;ee=LabelPrefix, "CRC"
+																											;ed="D_FILE_CRC_"
+																											;ec="D_INF_CRC_"
+																											;eb=if force to scan all even some one not scanned
+	push(0) w80 pop																				;80= CRC scan result	
+	H_array(STRING) je(0) RET_CRC pop w50 pop 											;50= array save "Label","FileLabel", ""
+	ra1 ra0 ree r50 ra3
+	call_func SERIES_INI_STR je(0) FINISH_CRC_SCAN wc9 pop				;c9= read CRC count 
+	
+	H_array_get_first(r50) je(0) STOP_CRC_SCAN pop wd0 pop							;d0= CRC label, "CRC_01" etc.
+	H_array_get_next(r50) je(0) STOP_CRC_SCAN pop wd1 pop							;d1= CRC FileLabel, "ImageFile_01" etc.
+	H_array_get_next(r50) je(0) STOP_CRC_SCAN pop pop								
+	
+	push(1) wc0 	pop																				;c0=CRC Item index, from 01 to c9, used for SCAN circle		
+:START_NEXT_CRC
+		H_array_get_first(r5f) je(0) STOP_CRC_SCAN pop wd2	pop							;d2=FileLabel exists in current rule
+		H_array_get_next(r5f) je(0) STOP_CRC_SCAN pop wd3	pop							;d3=file path exists in current rule
+	
+	:CMP_LABEL
+		strcmpi(rd2,rd1) je(0) NEXT_LABEL pop		
+		push(0) wd4 wd8 pop		
+		file_get_crc(rd3) je(0) NEXT_CRC pop wd4 pop										;d4=CRC value
+		H_file(rd3) je(0) NEXT_CRC pop
+		GetFileSize() wd8 pop																		;d8=file size
+		H_close()
+		rd8 je(0) NEXT_CRC pop											
+		
+		rc0 call_func DWORD_TO_STR wb1 pop	
+		str_convert(rb1,1) je(0) STOP_CRC_SCAN pop wb1 pop		
+		str_get_substr(rb1, 6, 7) je(0) STOP_CRC_SCAN pop wb1 pop				;b1=index of CRC label(string), etc. "01"
+	
+		;-----add to check autorun.inf-----
+		rec rb1 + wb2 pop																			;b2=Prefix_Index, etc. D_INF_CRC_01		
+		H_use(ra0)
+		ra3 je(0) NON_RULE_INI_2
+		pop
+		H_rule_ini_get_key_str(ra1, rb2) je(0) SEC_FILE_CRC pop 
+		goto DECRYPT_RULE_2
+:NON_RULE_INI_2
+		pop
+		H_ini_get_key_str(ra1, rb2) je(0) SEC_FILE_CRC pop 
+:DECRYPT_RULE_2
+		ra1 ;decryption
+		call_func DecryptString				
+		wb3 pop					
+		push(1) rb3
+		call_func GET_STR_IN_ANGE je(0) SEC_FILE_CRC pop wb3 pop				;b3=Autorun.inf file name
+		
+		rb3 rd4 ra2 
+		call_func SCAN_AUTO_INF reb | je(0) STOP_FILE_CRC_SCAN pop
+		;--------------------------------------
+	:SEC_FILE_CRC	
+		;red rb1 push("_") + + wd5 pop															;d5=D_FILE_CRC_index_, etc. D_FILE_CRC_01_ (STRING)		
+		red rb1 + wd5 pop																			;d5=D_FILE_CRC_index_, etc. B001 (STRING)		
+		
+		push(0) w81 pop																				;81=auto run scan result
+		H_array(STRING) je(0) STOP_CRC_SCAN pop w51 pop									;51= array save "Label","FilePath","FileName"	
+	
+		ra1 ra0 rd5 r51 ra3
+		call_func SERIES_INI_STR je(0) STOP_FILE_CRC_SCAN wc6 pop		;c6= read delete file CRC count 	
+	
+		H_array_get_first(r51) je(0) STOP_FILE_CRC_SCAN pop pop							;pop label	
+		H_array_get_next(r51) je(0) STOP_FILE_CRC_SCAN pop wd6 pop					;d6= FilePath
+		H_array_get_next(r51) je(0) STOP_FILE_CRC_SCAN pop wd7 pop					;d7= FileName
+	
+			push(1) wc1 	pop																					;c1=D_File_CRC Item index, from 01 to c6
+		:START_NEXT_FILE_CRC
+			H_array(STRING) je(0) STOP_FILE_CRC_SCAN pop w52 pop						;52= array save exist "FilePath\FileName"	
+			push("call func SCAN_FILE_EXIST") pop ;only for debug log
+			r52 push(0) re0 re1 rd7 rd6
+			call_func SCAN_FILE_EXIST w00 je(0) NO_FILE_CRC pop								;00=once find result
+			we1 pop			;e1=Expanded KeyWord			
+
+			H_array_get_first(r52) w00 je(0) NO_FILE_CRC pop wd3 pop						;d3= found FilePath\FileName
+			:DO_CRC_CHECK
+				H_file(rd3) je(0) NEXT_CRC_CHECK pop
+				GetFileSize() wd9 pop																		;d9= current file size
+				H_close()															
+				rd9 rd8 - jne(0) NEXT_CRC_CHECK pop												;1. check file size 
+				check_file_with_crc(rd3, rd4, 0) je(0) NEXT_CRC_CHECK pop					;2. check file CRC	
+				
+				; save	"Type", "ItemPath", "", "" 		for callback report; type=file
+				push("") push("") rd3 push("0")
+				H_array_append(ra2,4) w00 je(0) NO_FILE_CRC pop
+			:NEXT_CRC_CHECK
+			H_array_get_next(r52) w00 je(0) NO_FILE_CRC pop wd3 pop
+			goto DO_CRC_CHECK
+		
+		:NO_FILE_CRC
+			H_use(r52)
+			H_close()	
+			r00 reb | je(0) STOP_FILE_CRC_SCAN pop
+			rc1 push(1) + wc1 rc6 - je(1) FINISH_FILE_CRC_SCAN pop								;c1++ and (c1<=c6)
+			H_array_get_next(r51) je(0) STOP_FILE_CRC_SCAN pop pop
+			H_array_get_next(r51) je(0) STOP_FILE_CRC_SCAN pop wd6 pop					;d6= FilePath
+			H_array_get_next(r51) je(0) STOP_FILE_CRC_SCAN pop wd7 pop					;d7= FileName
+			goto START_NEXT_FILE_CRC
+			
+		:FINISH_FILE_CRC_SCAN
+			push(1) w81 
+		:STOP_FILE_CRC_SCAN pop
+			H_use(r51)
+			H_close()	
+			r81 je(0) STOP_CRC_SCAN pop		
+			goto NEXT_CRC
+	:NEXT_LABEL pop
+		H_array_get_next(r5f) je(0) STOP_CRC_SCAN pop wd2	pop							;d2=FileLabel exists in current rule
+		H_array_get_next(r5f) je(0) STOP_CRC_SCAN pop wd3	pop							;d3=file path exists in current rule
+		goto CMP_LABEL
+	
+:NEXT_CRC	
+	rc0 push(1) + wc0 rc9 - je(1) FINISH_CRC_SCAN pop									;c0++ and (c0<=c9)	
+	H_array_get_next(r50) je(0) STOP_CRC_SCAN pop wd0 pop							;d0= CRC label, "CRC_01" etc.
+	H_array_get_next(r50) je(0) STOP_CRC_SCAN pop wd1 pop							;d1= CRC FileLabel, "ImageFile_01" etc.
+	H_array_get_next(r50) je(0) STOP_CRC_SCAN pop pop							
+	goto START_NEXT_CRC
+
+:FINISH_CRC_SCAN pop
+	push(1) w80
+:STOP_CRC_SCAN pop
+	H_use(r50)
+	H_close()
+:RET_CRC pop
+	r80 	
+	ret	
+;-----------------------------------------------------------------------CRC Scan End---------------------------------------	
+:DETECT_END pop
+	H_use(r5f)
+	H_close()
+:END
+	r88 je(0) RET pop
+	re2 r88 	
+:RET
+ 	popa()
+ 	ret_func
+ 	end_func
+}
+@DCT_PROACTIVE	;[Yilin Qu] 2011.5.19
+{
+	id = 1
+	fmt = tsc_clean
+	vsapiptn=DCT_PROACTIVE
+	set_instruction_limit(ffffffff)
+	
+	push(6) push(5)
+	call_func CheckEngineVer																				;check DCE engine version >= 6.5
+	je(0) END pop
+	push(7) push(0)
+	call_func CheckEngineVer
+	wa2 pop																									;a2=0: engine version < 7.0; 1:engine version >=7.0
+	get_engine_risk_level() wf0 pop																			;f0=current engine risk level
+	
+	;-----enable flags-----
+	set_TSC_flag(OP_ROOTKIT,"true")	 ;enable RCM
+	set_TSC_flag(OP_BOOTCLEAN, "true") 
+ 	set_TSC_flag(OP_AIOFC, "true")
+	set_TSC_flag(OP_REGBOOTCLEAN, "true")
+	set_TSC_flag(OP_HIVEAPI,"true")
+
+	;-----global variables-----
+	H_array(STRING) je(0) END pop wa1 pop 	 															;a1= array save "File Path" "Virus Name" to be cleaned		
+	push("%tempdir%\Proactive.ini") wff pop																	;ff= proactive.ini file name
+	push(0) w88 pop 									 																;88=virus found flag		
+	
+	;-----check assigned files-----
+	get_first_assigned_virus_file() je(0) START_SCAN w88
+:SAVE_ASSIGNED	
+	je(0) SCAN_END pop
+	H_array_append(ra1,2) je(0) CLEAN_END pop		 ;in assign mode just do clean action
+	get_next_assigned_virus_file()
+	goto SAVE_ASSIGNED			
+	
+	;-----scan rules-----
+:START_SCAN		
+	extract_attach_file("ProActive.ini","%tempdir%","") je(0) SCAN_END pop wff pop								;ff= full ini file path (random name)				
+	ra2 je(0) NON_RULE_INI
+	pop
+	H_rule_ini_file(rff) je(0) SCAN_END pop wa0 pop																					;a0= ini file handle	
+	H_rule_ini_get_key_str("F0F1", "00") je(0) SCAN_STOP pop 
+	goto DECRYPT_RULE
+:NON_RULE_INI
+	pop
+	H_ini_file(rff) je(0) SCAN_END pop wa0 pop																					;a0= ini file handle	
+	H_ini_get_key_str("F0F1", "00") je(0) SCAN_STOP pop 
+:DECRYPT_RULE
+	push("F0F1") ;decryption
+	call_func DecryptString		
+	call_func STR_TO_DWORD	wb0 pop																		;b0=Total RULE Section Count (DWORD)
+	push(0) wc0 																						;c0=counter of circle 
+	
+	:START_NEXT_SECTION pop
+		rc0 push(1) + wc0 							;c0++
+		call_func DWORD_TO_STR wb1 pop 
+		str_convert(rb1,1) je(0) NEXT_SECTION pop wb1 pop		
+		str_get_substr(rb1, 4, 7) je(0) NEXT_SECTION pop wb1 pop
+		push("F0") rb1 + wb1 pop																			;b1=section name, etc.[RULE_0001]	
+		
+		H_use(ra0)
+		ra2 je(0) NON_RULE_INI_1
+		pop
+		H_rule_ini_get_key_str(rb1, "01") je(0) NEXT_SECTION pop
+		goto DECRYPT_RULE_1
+:NON_RULE_INI_1
+		pop
+		H_ini_get_key_str(rb1, "01") je(0) NEXT_SECTION pop
+:DECRYPT_RULE_1
+		rb1 ;decryption
+		call_func DecryptString		
+		call_func STR_TO_DWORD	wb2 																		;b2=RuleType (DWORD)
+		
+		; switch the RuleType to function seperately
+		je(1) RULE_TYPE_1
+		je(2) RULE_TYPE_2
+		;	... ...
+
+	:NEXT_SECTION pop	
+		rb0 rc0 - jne(0) START_NEXT_SECTION pop
+	goto SCAN_STOP
+;----------------------------------------------------
+:RULE_TYPE_1
+		;----------check risk level----------
+		H_use(ra0)
+		ra2 je(0) NON_RULE_INI_2
+		pop
+		H_rule_ini_get_key_str(rb1, "04") je(0) _RET_RULE_TYPE_1 pop 
+		goto DECRYPT_RULE_2
+:NON_RULE_INI_2
+		pop
+		H_ini_get_key_str(rb1, "04") je(0) _RET_RULE_TYPE_1 pop 
+:DECRYPT_RULE_2		
+		rb1 ;decryption
+		call_func DecryptString		
+		call_func STR_TO_DWORD wb3 pop																						;b3=Risk Level (DWORD): 0,1,2,ff
+		rf0 rb3- jg(ff) _RET_RULE_TYPE_1																							;	if 	engine risk level>=rule risk level, then execute rule
+		;-----------------------------------
+		H_array(STRING) je(0) _RET_RULE_TYPE_1 pop w50 pop 	 			;50= array save "Type", "ItemPath", "KeyValue", "ValueData"		
+		r50 ra0 rb1 ra2
+		call_func PACU_SCAN_1 je(0) _END_RULE_TYPE_1 pop
+		wd1 pop																					;d1=Virus Name
+		ra1 rd1 push(1) push(0) r50 
+		call_func REPORT_VIRUS 
+		je(0) _END_RULE_TYPE_1 pop
+		je(0) _END_RULE_TYPE_1	pop														;files count added to clean		
+		push(1) w88 pop 
+		
+	:_END_RULE_TYPE_1	
+		H_use(r50)
+		H_close()
+	:_RET_RULE_TYPE_1
+		goto NEXT_SECTION 	
+;-------------------------------	
+:RULE_TYPE_2
+	goto NEXT_SECTION
+; ... ...	
+;-------------------------------------------------
+:SCAN_STOP
+	H_use(ra0)		;close ini file handle
+	H_close()
+	rff call_func UNEXTRACT_INI	;delete ini file
+:SCAN_END
+	r88 je(0) CLEAN_END pop
+	set_TSC_flag(VIRUS_FOUND, "true")
+;-------------------------------------------------	
+:CLEAN_END
+	H_use(ra1)		;close array handle "File Path" "Virus Name" to be cleaned
+	H_close()		;This close will not be called in DCE "SCAN_ALL_WITHOUT_CLEAN" mode, but the handle will be freed as soon as this pattern executes end.
+	;file_exist(rff) je(0) END pop
+	;file_del(rff)	
+:END
+}

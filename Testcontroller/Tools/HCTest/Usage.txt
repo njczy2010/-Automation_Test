@@ -1,0 +1,5 @@
+For Scan:
+HCTestDCE.exe HCSCAN <result log file, such as "scanresult.txt"> [/D, TSC print debug log]
+
+For Clean:
+HCTestDCE.exe HCCLEAN <scan result log file> [clean result log, default is "cleanresult.txt"] [/D, TSC print debug log]

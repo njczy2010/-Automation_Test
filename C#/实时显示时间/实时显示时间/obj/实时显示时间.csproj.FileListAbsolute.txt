@@ -1,0 +1,5 @@
+D:\czy\chengxu\C#\实时显示时间\实时显示时间\obj\Debug\ResolveAssemblyReference.cache
+D:\czy\chengxu\C#\实时显示时间\实时显示时间\bin\Debug\实时显示时间.exe
+D:\czy\chengxu\C#\实时显示时间\实时显示时间\bin\Debug\实时显示时间.pdb
+D:\czy\chengxu\C#\实时显示时间\实时显示时间\obj\Debug\实时显示时间.exe
+D:\czy\chengxu\C#\实时显示时间\实时显示时间\obj\Debug\实时显示时间.pdb

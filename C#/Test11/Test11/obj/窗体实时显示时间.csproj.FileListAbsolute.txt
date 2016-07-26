@@ -1,0 +1,8 @@
+D:\czy\chengxu\C#\Test11\Test11\bin\Debug\Test11.exe
+D:\czy\chengxu\C#\Test11\Test11\bin\Debug\Test11.pdb
+D:\czy\chengxu\C#\Test11\Test11\obj\Debug\ResolveAssemblyReference.cache
+D:\czy\chengxu\C#\Test11\Test11\obj\Debug\Test11.Form1.resources
+D:\czy\chengxu\C#\Test11\Test11\obj\Debug\Test11.Properties.Resources.resources
+D:\czy\chengxu\C#\Test11\Test11\obj\Debug\窗体实时显示时间.csproj.GenerateResource.Cache
+D:\czy\chengxu\C#\Test11\Test11\obj\Debug\Test11.exe
+D:\czy\chengxu\C#\Test11\Test11\obj\Debug\Test11.pdb
