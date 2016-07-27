@@ -25,7 +25,7 @@ test case 在一台虚拟机上的具体执行
 
 ## 对于1，2：  
 ### 修改：  
-    HandleTests.pm(Testcontroller 的主程序)，修改准备环境(删除、创建文件夹，生成配置文件)的代码，将程序主体由数组循环变为了查找路径，相应的，由于没有了数组的概念，将 CheckTest里面涉及到的  \$gtStartTimes{'$szVmClientId'}; 变为了哈希结构。  
+HandleTests.pm(Testcontroller 的主程序)，修改准备环境(删除、创建文件夹，生成配置文件)的代码，将程序主体由数组循环变为了查找路径，相应的，由于没有了数组的概念，将 CheckTest里面涉及到的  \$gtStartTimes{'$szVmClientId'}; 变为了哈希结构。   
     
 主要流程是HandleTestsOnce 先执行PrepareGuestState ，将返回的JSON写入 GuestState.ini。  
 
